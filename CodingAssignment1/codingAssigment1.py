@@ -10,52 +10,56 @@ from sklearn.pipeline import Pipeline
 ###############################################
 
 
-nclusters = 10      
-p = 2      
-s = 1;      # sd for generating the centers within each class                    
-m1 = np.random.normal(size = (nclusters, p)) * s \
-     + np.concatenate([np.array([[1, 0]] * nclusters)])
-m0 = np.random.normal(size = (nclusters, p)) * s \
-     + np.concatenate([np.array([[0, 1]] * nclusters)])
+
 
 
 ################################################    
      
-ntrain=100;  
-ntest=5000; 
-
-# Randomly allocate the n samples for class 1  to the 10 clusters
-id1 = np.random.randint(nclusters, size = ntrain)
-id0 = np.random.randint(nclusters, size = ntrain)
 
 
-# sd for generating x  
-s = np.sqrt(float(1)/5) 
-
-traindata = np.random.normal(size = (2 * ntrain, p)) * s \
-            + np.concatenate([m1[id1,:], m0[id0,:]])
-ytrain = np.concatenate(([1]*ntrain, [0]*ntrain))
-
-id1 = np.random.randint(nclusters, size = ntest)
-id0 = np.random.randint(nclusters, size = ntest)
-
-
-testdata = np.random.normal(size = (2 * ntest, p)) * s \
-            + np.concatenate([m1[id1,:], m0[id0,:]])
-ytest = np.concatenate(([1]*ntest, [0]*ntest))
+def generate_data(ntrain, ntest,nclusters = 10,p = 2, s = 1):
+    
+    m1 = np.random.normal(size = (nclusters, p)) * s \
+         + np.concatenate([np.array([[1, 0]] * nclusters)])
+    m0 = np.random.normal(size = (nclusters, p)) * s \
+         + np.concatenate([np.array([[0, 1]] * nclusters)])
+     
+    
+    # Randomly allocate the n samples for class 1  to the 10 clusters
+    id1 = np.random.randint(nclusters, size = ntrain)
+    id0 = np.random.randint(nclusters, size = ntrain)
+    
+    
+    # sd for generating x  
+    s = np.sqrt(float(1)/5) 
+    
+    traindata = np.random.normal(size = (2 * ntrain, p)) * s \
+                + np.concatenate([m1[id1,:], m0[id0,:]])
+    ytrain = np.concatenate(([1]*ntrain, [0]*ntrain))
+    
+    id1 = np.random.randint(nclusters, size = ntest)
+    id0 = np.random.randint(nclusters, size = ntest)
+    
+    
+    testdata = np.random.normal(size = (2 * ntest, p)) * s \
+                + np.concatenate([m1[id1,:], m0[id0,:]])
+    ytest = np.concatenate(([1]*ntest, [0]*ntest))
+    
+    return traindata, ytrain, testdata, ytest, m1, m0
 
 ###############################################
 
 
-
-plt.scatter(traindata[:ntrain, 0], traindata[:ntrain, 1], c = "blue", alpha=0.2, label='Class 1')
-plt.scatter(traindata[ntrain:, 0], traindata[ntrain:, 1], c = "red", alpha=0.2, label='Class 0')
-
-plt.scatter(m1[:,0], m1[:,1], marker = '+', s = 100, c = "blue")
-plt.scatter(m0[:,0], m0[:,1], marker = '+', s = 100, c = "red")
-
-plt.legend()
-plt.show()
+def plot_data(data, m1, m2):
+    traindata = data
+    plt.scatter(traindata[:ntrain, 0], traindata[:ntrain, 1], c = "blue", alpha=0.2, label='Class 1')
+    plt.scatter(traindata[ntrain:, 0], traindata[ntrain:, 1], c = "red", alpha=0.2, label='Class 0')
+    
+    plt.scatter(m1[:,0], m1[:,1], marker = '+', s = 100, c = "blue")
+    plt.scatter(m0[:,0], m0[:,1], marker = '+', s = 100, c = "red")
+    
+    plt.legend()
+    plt.show()
 
 
 ##########################################
@@ -154,5 +158,16 @@ Ytest_pred_Bayes = [int(bayes(x) > 1) for x in testdata]
 
 train_err_Bayes = sum(ytrain !=  Ytrain_pred_Bayes) / float(2*ntrain)
 test_err_Bayes = sum(ytest !=  Ytest_pred_Bayes) / float(2*ntest)
+
+#################################################
+# Main Function
+
+ntrain=100
+ntest=5000
+
+
+
+
+
 
 
