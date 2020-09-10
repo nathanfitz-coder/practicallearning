@@ -1,3 +1,4 @@
+y
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -202,10 +203,25 @@ style.use('ggplot')
 
 ax = sns.boxplot(x="method", y="error", hue="set", data=df)
 
-plt.close()
-
+print(np.array(bestKs).mean())
+print(np.array(bestKs).std())
 
 bestKdf = pd.DataFrame(list(zip(bestKs,range(len(bestKs)))),columns =['k','index'])
-ax = sns.barplot(x='index',y='k',data=bestKdf,color='lightblue')
+ax = sns.barplot(x='index',y='k',data=bestKdf,color='lightblue').set_title('All K''s')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
