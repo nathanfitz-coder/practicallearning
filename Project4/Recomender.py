@@ -91,22 +91,16 @@ for i in best_of_genre_2():
 
 data = Dataset.load_builtin('ml-1m', prompt = False)
 # Use the famous SVD algorithm.
-algo = SVD()
+algo = SVD(reg_all=0.05, lr_all=0.007, n_epochs=30)
 
 # Run 5-fold cross-validation and print results.
-cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=5, verbose=True);
-
-
-
-
-algo = KNNBasic()
-
+#cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=5, verbose=True);
+#algo = KNNBasic()
 # Run 5-fold cross-validation and print results.
-cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=5, verbose=True);
+cross_validate(algo, data, measures=['RMSE'], cv=2,  verbose=True);
 
 
-
-param_grid = {'n_epochs': [30], 'lr_all': [0.007],'reg_all': [0.05, 0.06, 0.07]}
+param_grid = {'n_epochs': [30], 'lr_all': [0.007],'reg_all': [0.05]}
 
 
 gs = GridSearchCV(SVD, param_grid, measures=['rmse'], cv=5)
@@ -149,5 +143,19 @@ def get_top_n(predictions, n=10):
     return top_n
 
 
+# First train an SVD algorithm on the movielens dataset.
+#data = Dataset.load_builtin('ml-100k')
+trainset = data.build_full_trainset()
+algo = SVD()
+algo.fit(trainset)
 
+# Than predict ratings for all pairs (u, i) that are NOT in the training set.
+testset = trainset.build_anti_testset()
+predictions = algo.test(testset)
+
+top_n = get_top_n(predictions, n=10)
+
+# Print the recommended items for each user
+for uid, user_ratings in top_n.items():
+    print(uid, [iid for (iid, _) in user_ratings])
 
