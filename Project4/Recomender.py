@@ -1,9 +1,10 @@
 import pandas as pd
 import numpy as np
 import datetime
+import time
 from collections import defaultdict
-from surprise import SVD, KNNBasic
-from surprise import Dataset
+from surprise import SVD, SlopeOne
+from surprise import Dataset, Reader
 from surprise.model_selection import cross_validate
 from surprise.model_selection import GridSearchCV
 
@@ -28,7 +29,8 @@ def time_to_coef(timestamp):
 
 ratings['time_coef'] = ratings['Timestamp'].apply(time_to_coef)
 
-
+reader = Reader()
+data = Dataset.load_from_df(ratings[['UserID', 'MovieID', 'Rating']], reader)
                                    
                                        
 #split movie genres
@@ -89,29 +91,29 @@ for i in best_of_genre_2():
 
 # Load the movielens-100k dataset (download it if needed).
 
-data = Dataset.load_builtin('ml-1m', prompt = False)
+#data = Dataset.load_builtin('ml-1m', prompt = False)
 # Use the famous SVD algorithm.
-algo = SVD(reg_all=0.05, lr_all=0.007, n_epochs=30)
+
 
 # Run 5-fold cross-validation and print results.
 #cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=5, verbose=True);
 #algo = KNNBasic()
 # Run 5-fold cross-validation and print results.
-cross_validate(algo, data, measures=['RMSE'], cv=2,  verbose=True);
+cross_validate(algo, data, measures=['RMSE'], cv=5,  verbose=True);
 
 
-param_grid = {'n_epochs': [30], 'lr_all': [0.007],'reg_all': [0.05]}
+#param_grid = {'n_epochs': [30], 'lr_all': [0.007],'reg_all': [0.05]}
 
 
-gs = GridSearchCV(SVD, param_grid, measures=['rmse'], cv=5)
+#gs = GridSearchCV(SVD, param_grid, measures=['rmse'], cv=5)
 
-gs.fit(data)
+#gs.fit(data)
 
 # best RMSE score
-print(gs.best_score['rmse'])
+#print(gs.best_score['rmse'])
 
 # combination of parameters that gave the best RMSE score
-print(gs.best_params['rmse'])
+#print(gs.best_params['rmse'])
 
 
 
@@ -143,19 +145,83 @@ def get_top_n(predictions, n=10):
     return top_n
 
 
-# First train an SVD algorithm on the movielens dataset.
-#data = Dataset.load_builtin('ml-100k')
-trainset = data.build_full_trainset()
-algo = SVD()
-algo.fit(trainset)
 
-# Than predict ratings for all pairs (u, i) that are NOT in the training set.
-testset = trainset.build_anti_testset()
-predictions = algo.test(testset)
+t = time.time()
+elapsed = time.time() - t
 
-top_n = get_top_n(predictions, n=10)
+def cf_recommend(data, algo, user_id):
+    # First train an SVD algorithm on the movielens dataset.
+    #data = Dataset.load_builtin('ml-100k')
+    trainset = data.build_full_trainset()
+    
+    algo.fit(trainset)
+    
+    user_ratings=ratings[ratings['UserID']==user_id]
+    user_ratings=user_ratings[['UserID', 'MovieID', 'Rating']]
+    
+    
+    #all_items = list(trainset.all_items())
+    #fake_user = [9999] * len(all_items)
+    #fake_rating = [4.5] * len(all_items)
+    
+    
+    ratings_dict = {'UserID': [9999] * len(trainset.all_items()),
+                    'MovieID': list(trainset.all_items()),
+                    'Rating': [4.5] * len(trainset.all_items())}
+    
+    user_ratings=pd.concat([user_ratings, pd.DataFrame(ratings_dict)])
+    
+    user_ratings = Dataset.load_from_df(user_ratings, reader).build_full_trainset()
+    
+    
+    # Than predict ratings for all pairs (u, i) that are NOT in the training set.
+    testset = user_ratings.build_anti_testset()
+    predictions = algo.test(testset)
+    
+    top_n = get_top_n(predictions, n=10)
+    
+    
+    # Print the recommended items for each user
+    #for uid, user_ratings in top_n.items():
+       # print(uid, [iid for (iid, _) in user_ratings])
+    
+    
+    tmp = pd.DataFrame(top_n[1]).rename(columns={0: 'MovieID', 1: 'Rating'}).merge(movies, on='MovieID')
+    #print(tmp[['Title', 'Rating']])
+    return list(tmp['MovieID'])
 
-# Print the recommended items for each user
-for uid, user_ratings in top_n.items():
-    print(uid, [iid for (iid, _) in user_ratings])
+
+
+
+recommended_movies_svd = cf_recommend(data, SVD(reg_all=0.05, lr_all=0.007, n_epochs=30), 1)
+
+
+recommended_movies_slope1 = cf_recommend(data, SlopeOne(), 1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
