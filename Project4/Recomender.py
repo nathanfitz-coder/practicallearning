@@ -1,119 +1,79 @@
 import pandas as pd
 import numpy as np
 import datetime
+import sys
 import time
+import json
 from collections import defaultdict
-from surprise import SVD, SlopeOne
+from surprise import SVD, SlopeOne,CoClustering
 from surprise import Dataset, Reader
 from surprise.model_selection import cross_validate
 from surprise.model_selection import GridSearchCV
+from sqlalchemy import create_engine
 
 
-#dataframe headers
-user_header = ["UserID","Gender","Age","Occupation","Zip-code"]
-ratings_header = ['UserID','MovieID','Rating','Timestamp']
-movies_header = ['MovieID','Title','Genres']
+def movie_weights():
+    e = create_engine("sqlite:///../moviereviews.db")
+    
+    movies = pd.DataFrame(e.execute("SELECT MovieID, Title, Genre FROM movies").fetchall()).rename(columns={0: 'MovieID', 1: 'Title', 2:'Genres'})
+    ratings = pd.DataFrame(e.execute("SELECT * FROM ratings").fetchall()).rename(columns={0: 'UserID', 1: 'MovieID', 2:'Rating', 3:'Timestamp'})
+    
+    movies['Year'] = movies['Title'].apply(lambda x: x[x.rfind("(")+1:-1]).apply(int) 
+    
+    
+    
+    firsttime = min(ratings['Timestamp'])
+    lasttime = max(ratings['Timestamp'])
+    
+    def time_to_coef(timestamp):
+        return (timestamp-firsttime)/(lasttime-firsttime)
+    
+    ratings['time_coef'] = ratings['Timestamp'].apply(time_to_coef)
+    
+    firstyear = min(movies['Year'])
+    lastyear = max(movies['Year'])
+    
+    def year_to_coef(currentyear):
+        return (currentyear-firstyear)/(lastyear-firstyear)
+    
+    movies['year_coef'] = movies['Year'].apply(year_to_coef)
+    
+    
+    
+    movies_genres = pd.concat([pd.Series(row['MovieID'], row['Genres'].split('|')) for _, row in movies.iterrows()]).reset_index().rename(columns={'index': 'Genre', 0: 'MovieID'})
+    #movies_genres.to_sql('movie_genres', if_exists='replace', con=e)
+    
+    
+    avg_time_coef = ratings.groupby(by=['MovieID'])['time_coef'].agg([np.mean]).rename(columns={'mean': 'avg_time_coef'})
+    
+    
+    movie_grouped = ratings.groupby(by=['MovieID'])['Rating'].agg([np.sum, np.mean, np.std,np.ma.count]).merge(movies, on='MovieID')
+    
+    ninty_pct = np.percentile(movie_grouped['count'],90)
+    fifty_pct = np.percentile(movie_grouped['count'],50)
+    
+    meanreview = np.mean(ratings['Rating'])
+    
+    #calculating weighted review
+    movie_grouped['weighted_review'] = (movie_grouped['mean']*movie_grouped['count']/(movie_grouped['count']+ninty_pct)) + (meanreview*ninty_pct/(movie_grouped['count']+ninty_pct))
+    
+    #calculating trendy reviews
+    movie_grouped['trendy_review'] = movie_grouped['year_coef']*((movie_grouped['mean']*movie_grouped['count']/(movie_grouped['count']+fifty_pct)) + (meanreview*fifty_pct/(movie_grouped['count']+fifty_pct)))
+    
+    movie_grouped = movie_grouped.rename(columns={'weighted_review': 'WeightedRating', 'trendy_review': 'TrendRating', 'Genres':'Genre'})
+    
+    movie_grouped[['MovieID','Title','Genre','WeightedRating','TrendRating']].to_sql('movies', if_exists='replace', con=e,index=False)
+    
 
-#import data
-users = pd.read_csv('MovieData/users.dat',sep='::',names=user_header)
-ratings = pd.read_csv('MovieData/ratings.dat',sep='::',names=ratings_header)
-movies = pd.read_csv('MovieData/movies.dat',sep='::',names=movies_header)
 
-ratings['datetime'] = ratings['Timestamp'].apply(datetime.datetime.fromtimestamp)
-
-firsttime = min(ratings['Timestamp'])
-lasttime = max(ratings['Timestamp'])
-
-def time_to_coef(timestamp):
-    return (timestamp-firsttime)/(lasttime-firsttime)
-
-ratings['time_coef'] = ratings['Timestamp'].apply(time_to_coef)
-
-reader = Reader()
-data = Dataset.load_from_df(ratings[['UserID', 'MovieID', 'Rating']], reader)
-                                   
-                                       
-#split movie genres
-movies_genres = pd.concat([pd.Series(row['MovieID'], row['Genres'].split('|')) for _, row in movies.iterrows()]).reset_index().rename(columns={'index': 'genre', 0: 'MovieID'})
-
-
-
-avg_time_coef = ratings.groupby(by=['MovieID'])['time_coef'].agg([np.mean]).rename(columns={'mean': 'avg_time_coef'})
-movie_grouped = ratings.groupby(by=['MovieID'])['Rating'].agg([np.sum, np.mean, np.std,np.ma.count]).merge(avg_time_coef, on='MovieID')
-
-
-#tmp = movie_grouped.merge(avg_time_coef, on='MovieID')
-
-
-
-
-ninty_pct = np.percentile(movie_grouped['count'],90)
-fifty_pct = np.percentile(movie_grouped['count'],50)
-
-meanreview = np.mean(ratings['Rating'])
-
-#calculating weighted review
-movie_grouped['wr'] = (movie_grouped['mean']*movie_grouped['count']/(movie_grouped['count']+ninty_pct)) + (meanreview*ninty_pct/(movie_grouped['count']+ninty_pct))
-
-#calculating trendy reviews
-movie_grouped['tr'] = movie_grouped['avg_time_coef']*((movie_grouped['mean']*movie_grouped['count']/(movie_grouped['count']+fifty_pct)) + (meanreview*fifty_pct/(movie_grouped['count']+fifty_pct)))
-
-
-
-movies = movies.set_index('MovieID')
-
-#tmp = movie_grouped.sort_values(by=['wr'], ascending=False).head(10).join(movies)
-#movie_grouped['MovieID']=movie_grouped.index
-
-genre_rating = movie_grouped.merge(movies_genres, on='MovieID')
-unique_genres = movies_genres['genre'].unique()
-
-def best_of_genre_1(g='Animation',n=10):
+def best_of_genre_1(genre_rating, g='Animation',n=10):
     genre_filtered = genre_rating[genre_rating['genre']==g]
     return genre_filtered.sort_values(by=['wr'], ascending=False).head(n)['MovieID'].tolist()
 
 
-def best_of_genre_2(g='Animation',n=10):
+def best_of_genre_2(genre_rating, g='Animation',n=10):
     genre_filtered = genre_rating[genre_rating['genre']==g]
     return genre_filtered.sort_values(by=['tr'], ascending=False).head(n)['MovieID'].tolist()
-
-
-
-
-
-for i in best_of_genre_1():
-    print(movies.loc[i])
-
-
-for i in best_of_genre_2():
-    print(movies.loc[i])
-
-
-# Load the movielens-100k dataset (download it if needed).
-
-#data = Dataset.load_builtin('ml-1m', prompt = False)
-# Use the famous SVD algorithm.
-
-
-# Run 5-fold cross-validation and print results.
-#cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=5, verbose=True);
-#algo = KNNBasic()
-# Run 5-fold cross-validation and print results.
-cross_validate(algo, data, measures=['RMSE'], cv=5,  verbose=True);
-
-
-#param_grid = {'n_epochs': [30], 'lr_all': [0.007],'reg_all': [0.05]}
-
-
-#gs = GridSearchCV(SVD, param_grid, measures=['rmse'], cv=5)
-
-#gs.fit(data)
-
-# best RMSE score
-#print(gs.best_score['rmse'])
-
-# combination of parameters that gave the best RMSE score
-#print(gs.best_params['rmse'])
 
 
 
@@ -146,12 +106,12 @@ def get_top_n(predictions, n=10):
 
 
 
-t = time.time()
-elapsed = time.time() - t
 
-def cf_recommend(data, algo, user_id):
+def cf_recommend(ratings, algo, user_id):
     # First train an SVD algorithm on the movielens dataset.
     #data = Dataset.load_builtin('ml-100k')
+    reader = Reader()
+    data = Dataset.load_from_df(ratings, reader)
     trainset = data.build_full_trainset()
     
     algo.fit(trainset)
@@ -186,42 +146,45 @@ def cf_recommend(data, algo, user_id):
        # print(uid, [iid for (iid, _) in user_ratings])
     
     
-    tmp = pd.DataFrame(top_n[1]).rename(columns={0: 'MovieID', 1: 'Rating'}).merge(movies, on='MovieID')
+    #tmp = pd.DataFrame(top_n[1]).rename(columns={0: 'MovieID', 1: 'Rating'}).merge(movies, on='MovieID')
     #print(tmp[['Title', 'Rating']])
-    return list(tmp['MovieID'])
+    return pd.DataFrame(top_n[user_id]).rename(columns={0: 'MovieID', 1: 'Rating'})['MovieID'].tolist()
 
 
-
-
-recommended_movies_svd = cf_recommend(data, SVD(reg_all=0.05, lr_all=0.007, n_epochs=30), 1)
-
-
-recommended_movies_slope1 = cf_recommend(data, SlopeOne(), 1)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+try:
+    user_ratings=json.loads(sys.argv[1])
+    
+    e = create_engine("sqlite:///../moviereviews.db")
+    movies = pd.DataFrame(e.execute("SELECT MovieID, Title, Genre FROM movies").fetchall()).rename(columns={0: 'MovieID', 1: 'Title', 2:'Genres'})
+    ratings = pd.DataFrame(e.execute("SELECT UserID,MovieID,Rating FROM ratings").fetchall()).rename(columns={0: 'UserID', 1: 'MovieID', 2:'Rating'})
+    
+    
+    
+    #user_ratings = json.loads('{"110":5,"260":5,"1196":5,"1210":4,"1240":5,"2571":5,"3578":5}')
+    user_ratings = {'UserID': [9998] * len(user_ratings.keys()),
+                    'MovieID': list(user_ratings.keys()),
+                    'Rating': list(user_ratings.values())}
+    user_ratings = pd.DataFrame(user_ratings)
+    
+    ratings=pd.concat([user_ratings, ratings])
+    
+    
+    t = time.time()
+    return_json={}
+    return_json['SVD'] = cf_recommend(ratings, SVD(reg_all=0.05, lr_all=0.007, n_epochs=30), 9998)
+    return_json['COCLUSTERING'] = cf_recommend(ratings, CoClustering(), 9998)
+    elapsed = time.time() - t
+    
+    for idx, movieID in enumerate(return_json['SVD']):
+        return_json['SVD'][idx]={'MovieID':movieID, 'Title': movies[movies['MovieID']==movieID]['Title'].to_list()[0]}
+        
+    for idx, movieID in enumerate(return_json['COCLUSTERING']):
+        return_json['COCLUSTERING'][idx]={'MovieID':movieID, 'Title': movies[movies['MovieID']==movieID]['Title'].to_list()[0]}
+        
+    
+    print(json.dumps(return_json))
+except:
+    print("An exception in python occurred")
 
 
 

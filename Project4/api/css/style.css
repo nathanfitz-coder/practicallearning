@@ -1,0 +1,172 @@
+h1 {
+text-align: center;
+font-family: 'Montserrat', sans-serif;
+padding: 50px;
+}
+
+h2 {
+font-family: 'Montserrat', sans-serif;
+}
+
+
+select{
+  width: 20%;
+  height: 50px;
+  font-size: 20px;
+  /* background-color: #dfece8; */
+  background-color: white;
+  color: black;
+  border: 2px solid #008CBA;
+  border-radius: 5px;
+}
+
+select:hover {
+  background-color: #008CBA;
+  color: white;
+}
+
+.button {
+  border: none;
+  color: white;
+  padding: 16px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  transition-duration: 0.4s;
+  cursor: pointer;
+}
+
+.rec_button {
+  background-color: white;
+  color: black;
+  border: 2px solid #008CBA;
+}
+
+.recommend_picker{
+  /* background-color: Gainsboro; */
+  /* border-radius: 50px; */
+  /* border-width: 2px; */
+  margin: auto;
+  margin-top: 300px;
+  text-align: center;
+  position: fixed;
+  top: 0; left: 0; bottom: 0; right: 0;
+  /* width: 1000px; */
+  /* height: 600px; */
+}
+
+
+.rec_button:hover {
+  background-color: #008CBA;
+  color: white;
+}
+
+.picker_buttons{
+  display: inline-block;
+}
+.button_caption{
+  /* display: inline-block; */
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.button_caption > p{
+  text-align: center;
+}
+.hidden{
+  display: none;
+}
+
+.dropdown{
+  text-align: center;
+}
+
+.staring > h4{
+  text-align: center;
+  font-size: 40px;
+  margin-top: 150px;
+  margin-bottom: 100px;
+}
+
+.starthumb{
+  width:40px;
+  fill:#ffc107;
+}
+
+.staring{
+  background-color: Gainsboro;
+  border-radius: 50px;
+  border-width: 2px;
+  margin: auto;
+  position: fixed;
+  top: 0; left: 0; bottom: 0; right: 0;
+  width: 1000px;
+  height: 600px;
+}
+.allstars {
+  margin-left: auto;
+  margin-right: 150px;
+  display: flex;
+  flex-wrap: wrap;
+  text-align: center;
+  /* justify-content: space-around; */
+
+  /* reverse the order to allow hover   */
+  flex-direction: row-reverse;
+}
+
+.star{
+  width: 100px;
+  padding-left: 20px;
+  padding-right: 20px;
+  fill: grey;
+}
+
+.movie{
+  height: 410px;
+}
+
+.movie > p{
+  width: 250px;
+  white-space: normal;
+}
+
+.movie > img{
+  height: 250px;
+  box-shadow: 2px 2px 20px 10px rgba(0, 0, 0, 0.19);
+}
+.genre_column{
+  display:inline-block;
+  vertical-align:top;
+  margin-left: 25px;
+  margin-right: 25px;
+}
+
+.movieTitle{
+  margin-top: 0;
+}
+
+.all_movies{
+  text-align: center;
+  margin: auto;
+  white-space: nowrap;
+}
+
+/* effects */
+
+.cf.movie:hover img{
+  filter: brightness(120%);
+  transform: scale(1.05);
+  cursor: pointer;
+}
+
+
+
+
+
+.allstars .star:hover,
+.allstars .star:hover ~ .star{
+  fill:#ffc107;
+}
