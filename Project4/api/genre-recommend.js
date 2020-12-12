@@ -70,6 +70,6 @@ function insertMovies(data){
 // });
 
 $('#genreSelect').click(function(){
-  var url = 'http://localhost:3000/genre?genreq=' + $(this).val()
+  var url = '/genre?genreq=' + $(this).val()
   getMovieData(url);
 });

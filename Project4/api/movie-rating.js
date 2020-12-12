@@ -2,6 +2,54 @@ var uniqueMovies = [2858,1617];
 var movieData = {};
 var movieRatings = {};
 var ratingMovie = 0;
+var totaltime = 0;
+var timeinc = 5000;
+
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
+async function tryGetRecommendations(url="/recready"){
+    var res = await fetch(url)
+    .then(
+      function(response) {
+        if (response.status == 202){
+          console.log('Recommendations are not ready yet: ' + response.status);
+          waitForRecs();
+          return response.status
+        } else if (response.status == 200){
+          console.log('Recommendations ready: ' + response.status);
+          response.json().then(function(data) {
+            showRecommendations(data);
+          });
+          return response.status;
+        }
+        else {
+          console.log('Looks like there was a problem. Status Code: ' + response.status);
+          return response.status;
+        }
+      }
+    ).catch(function(err) {
+      console.log('Fetch Error :-S', err);
+    });
+    return res.text;
+}
+
+
+function waitForRecs(){
+  if(totaltime < 300000){
+    sleep(5000).then(() => { tryGetRecommendations(url="/recready"); });
+    totaltime = totaltime + timeinc;
+  }
+
+
+}
+
+
+
+
 
 function getMovieData(url){
   var res = fetch(url)
@@ -22,6 +70,8 @@ function getMovieData(url){
     console.log('Fetch Error :-S', err);
   });
 }
+
+
 //body: JSON.stringify(postData)
 //body: "{'100': '5'}"
 //JSON.stringify(data).length.toString()
@@ -40,7 +90,7 @@ async function postData(url = '', data = {}) {
     body: JSON.stringify(data) // body data type must match "Content-Type" header
   });
 
-  return response.json(); // parses JSON response into native JavaScript objects
+  //return response   //.json(); // parses JSON response into native JavaScript objects
 }
 
 
@@ -52,7 +102,7 @@ function pleaseWait(){
 }
 
 function showRecommendations(data){
-
+  totaltime = 0;
   $("h1").html("I Think You'll Like These!");
   $(".button_caption").html("<p>The name of the column represents the algorithm used...</p>");
   $(".all_movies").empty();
@@ -103,17 +153,18 @@ function rateMovie(stars){
 
 
 $.each(["Sci-Fi","Drama","Action","Animation","Childrens","Crime"], function( index, value ) {
-  var url = 'http://localhost:3000/cf?genreq=' + value;
+  var url = '/cf?genreq=' + value;
   getMovieData(url);
 });
 
 $("#cf_submit_bttn").click(function(){
   // alert('sending post: ' + JSON.stringify(movieRatings));
   pleaseWait();
-  postData('http://localhost:3000/ratings',movieRatings)
-    .then(data => {
-      showRecommendations(data);
-      console.log(data);
-  });
+  postData('/ratings',movieRatings);
 
+  //  .then(data => {
+  //    showRecommendations(data);
+  //    console.log(data);
+  //});
+  tryGetRecommendations(url="/recready");
 });

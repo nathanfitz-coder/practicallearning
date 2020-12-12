@@ -3,6 +3,7 @@
 //start Server
 //nodemon app.js
 
+
 const express = require("express");
 var cors = require('cors');
 const {spawn} = require('child_process');
@@ -13,6 +14,8 @@ const bodyParser = require("body-parser");
 const sqlite3 = require('sqlite3').verbose();
 var db = new sqlite3.Database('moviereviews.db');
 
+var recommendationsReady = false;
+var jsonRecs = "";
 
 const app = express();
 
@@ -106,6 +109,19 @@ app.get("/cf", function(req, res){
    });
 });
 
+app.get("/recready", function(req, res){
+  res.set('Access-Control-Allow-Origin', '*');
+  if(recommendationsReady){
+    res.send(jsonRecs);
+    recommendationsReady = false;
+  } else {
+    res.sendStatus(202);
+  }
+
+});
+
+
+
 app.post("/ratings", function(req, res){
   //res.set('Access-Control-Allow-Origin', '*');
   var dataToSend;
@@ -115,12 +131,11 @@ app.post("/ratings", function(req, res){
   // collect data from script
   python.stdout.on('data', function (data) {
    console.log('Pipe data from python script ...');
-   dataToSend = data.toString();
-   console.log(dataToSend);
 
-   res.send(dataToSend);
-
-
+   jsonRecs = data.toString();
+   console.log(jsonRecs);
+   recommendationsReady = true;
+   //res.send(dataToSend);
 
   });
   // in close event we are sure that stream from child process is closed
@@ -131,7 +146,7 @@ app.post("/ratings", function(req, res){
   });
 
   console.log('Got body:', req.body);
-  //res.sendStatus(200);
+  res.sendStatus(200);
 });
 
 
