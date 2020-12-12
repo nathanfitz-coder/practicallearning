@@ -11,7 +11,7 @@ const bodyParser = require("body-parser");
 //npm install sqlite@3
 
 const sqlite3 = require('sqlite3').verbose();
-var db = new sqlite3.Database('../moviereviews.db');
+var db = new sqlite3.Database('moviereviews.db');
 
 
 const app = express();
@@ -20,8 +20,12 @@ const app = express();
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
-app.use(express.static("public"));
+app.use(express.static(__dirname));
 app.use(cors());
+
+app.get('/', function(req, res){
+  res.sendFile(__dirname +"/index.html")
+});
 
 app.get("/genre", function(req, res){
   res.set('Access-Control-Allow-Origin', '*');
@@ -106,7 +110,8 @@ app.post("/ratings", function(req, res){
   //res.set('Access-Control-Allow-Origin', '*');
   var dataToSend;
   // spawn new child process to call the python script
-  const python = spawn('conda', ['run', '-n', 'tensorflow', 'python', '../Recomender.py', JSON.stringify(req.body)]);
+  //const python = spawn('conda', ['run', '-n', 'tensorflow', 'python', 'Recomender.py', JSON.stringify(req.body)]);
+  const python = spawn('python', ['Recomender.py', JSON.stringify(req.body)]);
   // collect data from script
   python.stdout.on('data', function (data) {
    console.log('Pipe data from python script ...');
@@ -130,6 +135,6 @@ app.post("/ratings", function(req, res){
 });
 
 
-app.listen(3000, function() {
+app.listen(process.env.PORT || 3000, function() {
   console.log("Server started on port 3000");
 });
